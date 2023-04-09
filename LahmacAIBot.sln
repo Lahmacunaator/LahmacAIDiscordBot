@@ -1,7 +1,5 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LahmacAIBotAPI", "LahmacAIBotAPI\LahmacAIBotAPI.csproj", "{384E0F26-EC3F-4584-BFDF-67547442BCD7}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscordBot", "DiscordBot\DiscordBot.csproj", "{3F1D4D0A-7EBE-4744-8E5C-17A16502C3CA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GPT", "GPT\GPT.csproj", "{09117473-753B-435E-9B5C-E2F31861CD6F}"
@@ -16,10 +14,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{384E0F26-EC3F-4584-BFDF-67547442BCD7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{384E0F26-EC3F-4584-BFDF-67547442BCD7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{384E0F26-EC3F-4584-BFDF-67547442BCD7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{384E0F26-EC3F-4584-BFDF-67547442BCD7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3F1D4D0A-7EBE-4744-8E5C-17A16502C3CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3F1D4D0A-7EBE-4744-8E5C-17A16502C3CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3F1D4D0A-7EBE-4744-8E5C-17A16502C3CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
