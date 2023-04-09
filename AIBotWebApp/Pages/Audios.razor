@@ -1,0 +1,192 @@
+﻿@page "/soundboard"
+@using System.Security.Claims
+@using DiscordBot.Audio
+@using DiscordBot.Interfaces
+@using System.Diagnostics
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBotService BotService
+
+<PageTitle>Index</PageTitle>
+
+<h1>Hello, @DiscordUserName!</h1>
+
+<div class="uploadFile">
+
+    <InputFile multiple OnChange="@LoadFiles" />
+    @UploadStatusMessage
+
+</div>
+
+@if (_errors.Count > 0)
+{
+    <h2>THE Ls YOU HAD DURING THE UPLOAD:</h2>
+    <ul class="text-danger">
+        @foreach (var error in _errors)
+        {
+            <li>@error</li>
+        }
+    </ul>
+}
+
+Play your favourite sounds to your friends using the Soundboard
+
+<table>
+    <tbody>
+    <tr>
+        <th>Add the bot to your voice chat</th>
+        <td>
+            <button @onclick="JoinVoice"><b>Join</b></button>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<div class="container-fluid col-sm-8 float-start audio-container">
+    <Virtualize Items="@AudioDataList" Context="audio" OverscanCount="50" SpacerElement="div">
+        <Button class="audioButton" @onclick="() => PlayAudio(audio.AudioName, audio.Duration)" Variant="@audio.ButtonType.ToString()">
+            <b>@audio.AudioName</b>
+            <ProgressBar class="audio-progress-bar" Value="@audio.Progress" Max="audio.Duration"></ProgressBar>
+        </Button>
+    </Virtualize>
+</div>
+<div class="container-fluid col-sm-3 float-end logs">
+    <div class="row-cols-8 queue">
+        <table>
+            <Virtualize Items="@_logs" Context="log" OverscanCount="50" SpacerElement="div">
+                <tr>
+                    <td>
+                        <b>@log</b>
+                    </td>
+                </tr>
+            </Virtualize>
+        </table>
+    </div>
+<div class="row-cols-8 history">
+    
+</div>
+</div>
+
+@code
+{
+    private const long MaxFileSize = 1024 * 1024 * 3; //3MB
+    private const int MaxAllowedFiles = 20; //20 files max
+    private const int HorizontalButtonCount = 5;
+    private List<string> _errors = new();
+    private List<string> _logs = new();
+    private string AudioStoragePath { get; set; }
+    private string? DiscordUserName { get; set; }
+    private string? DiscordUserId { get; set; }
+    private List<Claim>? Claims { get; set; }
+    private List<AudioData>? AudioDataList { get; set; } = new();
+    private string UploadStatusMessage { get; set; } = "Ready to Upload";
+
+    protected override async Task OnInitializedAsync()
+    {
+        GetAudioFilesData();
+        await SetAuthObjects();
+    }
+    
+    private async Task SetAuthObjects()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        Claims = authState.User.Claims.ToList();
+        DiscordUserName = Claims.First(c => c.Type == ClaimTypes.Name).Value;
+        DiscordUserId = Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
+    }
+
+    private async Task PlayAudio(string audioName, double duration)
+    {
+        var bot = BotService.GetBot();
+        var webChannel = await BotService.GetWebChannel();
+        var command = BotService.GetCommandsList().First(c => c.Name.Contains("play"));
+        var audio = AudioDataList.First(a => a.AudioName.Equals(audioName));
+
+        _logs.Add($"{DiscordUserName} added {audio.AudioName} to the queue");
+        
+        StartProgressBar(audio).ConfigureAwait(false).GetAwaiter();
+        var ctx = bot.Commands.CreateFakeContext(await bot.Client.GetUserAsync(ulong.Parse(DiscordUserId)), webChannel, "", "!", command, audioName);
+        await command.ExecuteAsync(ctx);
+    }
+
+    private async Task JoinVoice()
+    {
+        var bot = BotService.GetBot();
+        var webChannel = await BotService.GetWebChannel();
+        var command = BotService.GetCommandsList().First(c => c.Name.Contains("join"));
+        var ctx = bot.Commands.CreateFakeContext(await bot.Client.GetUserAsync(ulong.Parse(DiscordUserId)), webChannel, "", "!", command);
+        await command.ExecuteAsync(ctx);
+    }
+
+    private void GetAudioFilesData()
+    {
+        var audioService = new AudioService();
+        AudioDataList = audioService.GetAllAudioData();
+        AudioStoragePath = audioService.GetAudioStoragePath();
+    }
+
+    private async Task StartProgressBar(AudioData audio)
+    {
+        var sw = new Stopwatch();
+        sw.Start();
+
+        audio.ButtonType = ButtonType.Success;
+        while (audio.Progress < audio.Duration)
+        {
+            audio.Progress = sw.ElapsedMilliseconds;
+            StateHasChanged();
+            await Task.Delay(1);
+        }
+
+        audio.Progress = 0;
+        sw.Stop();
+        audio.ButtonType = ButtonType.Primary;
+        StateHasChanged();
+    }
+
+    private async Task LoadFiles(InputFileChangeEventArgs e)
+    {
+        UploadStatusMessage = "Uploading";
+        _errors.Clear();
+
+        if (e.FileCount > MaxAllowedFiles)
+        {
+            UploadStatusMessage = "Upload Error";
+            _errors.Add($"ERROR: Attempting to upload {e.FileCount} files but you can upload only {MaxAllowedFiles} at a time");
+            return;
+        }
+
+        foreach (var file in e.GetMultipleFiles(MaxAllowedFiles))
+        {
+            try
+            {
+                if (file.Size > MaxFileSize)
+                {
+                    UploadStatusMessage = "Upload Error";
+                    _errors.Add($"{file.Name} Is too big, skipping that one.");
+                    continue;
+                }
+            
+                var extension = Path.GetExtension(file.Name);
+            
+                if (!extension.Equals(".mp3"))
+                {
+                    UploadStatusMessage = "Upload Error";
+                    _errors.Add($"{extension} File Type is Not Allowed. ONLY MP3 FILES ARE ALLOWED");
+                    return;
+                }
+
+                var path = Path.Combine(AudioStoragePath, file.Name);
+            
+                await using var fs = new FileStream(path, FileMode.Create);
+                await file.OpenReadStream(MaxFileSize).CopyToAsync(fs);
+            }
+            catch (Exception exception)
+            {
+                UploadStatusMessage = "Upload Error";
+                _errors.Add($"File: {file.Name} || ERROR: {exception.Message}");
+                throw;
+            }
+        }
+        UploadStatusMessage = "Upload Complete";
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,112 @@
+﻿@page "/"
+@using System.Security.Claims
+@using DiscordBot.Interfaces
+@using DiscordBot.WebCommands
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IBotService BotService
+@inject IJSRuntime JsRuntime
+
+<PageTitle>Index</PageTitle>
+
+<h1>Hello, @DiscordUserName!</h1>
+
+Welcome to @BotService.GetBot()?.Client.CurrentUser.Username
+
+<table>
+    <tbody>
+    <Virtualize Items="@Commands" Context="command" OverscanCount="50" SpacerElement="tr">
+        <tr>
+            <th>@command.Name</th>
+            <td>
+                <button @onclick="() => ExecuteCommand(command.Name)"><b>Execute!</b></button>
+            </td>
+            @if (command.ParameterTypes != null && command.ParameterTypes.Any())
+            {
+                var index = 0;
+
+                foreach (var paramType in command.ParameterTypes)
+                {
+                    var id = $"{command.Name}_{index}";
+                    if (paramType == typeof(int))
+                    {
+                        <td>
+                            <input type="number" id="@id"/>
+                        </td>
+                    }
+                    else
+                    {
+                        if (paramType == typeof(string))
+                        {
+                            <td>
+                                <input type="text" id="@id"/>
+                            </td>
+                        }
+                    }
+                    index++;
+                }
+            }
+        </tr>
+    </Virtualize>
+    </tbody>
+</table>
+
+<SurveyPrompt Title="How is Blazor working for you?"/>
+
+@code
+{
+    private string? DiscordUserName { get; set; }
+    private string? DiscordUserId { get; set; }
+    private List<Claim>? Claims { get; set; }
+    private List<CommandInfo>? Commands { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        GetCommands();
+        await SetAuthObjects();
+    }
+    
+    private async Task SetAuthObjects()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        Claims = authState.User.Claims.ToList();
+        DiscordUserName = Claims.First(c => c.Type == ClaimTypes.Name).Value;
+        DiscordUserId = Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value;
+    }
+
+    private void GetCommands()
+    {
+        var botCommands = BotService.GetCommandsList();
+        var paramsForCommands = BotService.GetCommandParams();
+        Commands = new List<CommandInfo>();
+        foreach (var command in botCommands)
+        {
+            var commandParams = paramsForCommands[command.Name];
+            Commands.Add(new CommandInfo
+            {
+                Name = command.Name,
+                ParameterTypes = commandParams,
+                RawParameters = ""
+            });
+        }
+    }
+
+    private async Task ExecuteCommand(string commandName)
+    {
+        var bot = BotService.GetBot();
+        var webChannel = await BotService.GetWebChannel();
+        var command = BotService.GetCommandsList().First(c => c.Name.Equals(commandName));
+        var commandInfo = Commands.First(c => c.Name.ToLower().Equals(command.Name));
+        
+        commandInfo.RawParameters = "";
+        for (var index = 0; index < commandInfo.ParameterTypes.Count; index++)
+        {
+            var elementId = $"{commandInfo.Name}_{index}";
+            var inputVal = await JsRuntime.InvokeAsync<string>("getInputValue", elementId);
+            commandInfo.RawParameters += $"{inputVal} ";
+        }
+        
+        var ctx = bot.Commands.CreateFakeContext(await bot.Client.GetUserAsync(ulong.Parse(DiscordUserId)), webChannel, "", "!", command, commandInfo.RawParameters.Trim());
+        await command.ExecuteAsync(ctx);
+    }
+
+}

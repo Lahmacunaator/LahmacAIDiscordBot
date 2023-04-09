@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Blazority" Version="1.1.1" />
+      <PackageReference Include="DSharpPlus" Version="4.4.0-nightly-01444" />
+      <PackageReference Include="DSharpPlus.CommandsNext" Version="4.4.0-nightly-01444" />
+      <PackageReference Include="DSharpPlus.Interactivity" Version="4.4.0-nightly-01444" />
+      <PackageReference Include="DSharpPlus.SlashCommands" Version="4.4.0-nightly-01444" />
+      <PackageReference Include="DSharpPlus.VoiceNext" Version="4.4.0-nightly-01444" />
+      <PackageReference Include="NAudio" Version="2.1.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="Microsoft.Extensions.Options">
+        <HintPath>C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App\7.0.2\Microsoft.Extensions.Options.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Audio\Audio.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Audio\Files\VineBoom.mp3">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+</Project>
